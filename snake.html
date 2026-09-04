@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+        :root {
+            --ink: #14211b;
+            --muted: #6d7b73;
+            --paper: #f7f8f1;
+            --line: #dfe5d8;
+            --green: #3d9b65;
+            --green-dark: #237047;
+            --lime: #cbe86b;
+            --red: #ed6555;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: .5;
+            background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+            background-size: 38px 38px;
+            mask-image: linear-gradient(to bottom, black, transparent 80%);
+        }
+
+        .shell {
+            width: min(92vw, 620px);
+            padding: 34px 0 28px;
+        }
+
+        header {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .kicker {
+            margin: 0 0 7px;
+            color: var(--green-dark);
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+        }
+
+        h1 { margin: 0; font-size: clamp(38px, 8vw, 58px); line-height: .9; letter-spacing: -2.5px; }
+
+        .scoreboard { display: flex; gap: 26px; text-align: right; }
+        .score-label { display: block; margin-bottom: 3px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+        .score-value { font-family: 'DM Mono', monospace; font-size: 23px; font-weight: 500; }
+
+        .difficulty { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+        .difficulty label { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+        .difficulty select { padding: 7px 28px 7px 9px; color: var(--ink); border: 1px solid var(--line); background: #fff; font: 500 12px 'Space Grotesk', sans-serif; cursor: pointer; }
+
+        .settings-toggle { display: block; margin: 18px 0 0 auto; padding: 8px 12px; color: var(--green-dark); background: transparent; border: 1px solid var(--line); font-size: 11px; }
+        .settings-toggle:hover { color: #fff; background: var(--green); }
+        .settings { display: none; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 10px 0 18px; padding: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.72); }
+        .settings.open { display: grid; }
+        .setting { display: grid; gap: 6px; }
+        .setting label { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+        .setting select, .setting input { width: 100%; min-height: 32px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+        .setting select { padding: 6px 8px; color: var(--ink); font: 500 12px 'Space Grotesk', sans-serif; }
+        .setting input { padding: 3px; }
+
+        .board-wrap { position: relative; padding: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.7); box-shadow: 0 18px 45px rgba(31, 64, 43, .11); }
+        canvas { display: block; width: 100%; aspect-ratio: 1; background: #eaf1df; image-rendering: pixelated; }
+
+        .message {
+            position: absolute;
+            inset: 10px;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            text-align: center;
+            background: rgba(247, 248, 241, .83);
+            backdrop-filter: blur(4px);
+            transition: opacity .2s ease;
+        }
+        .message.hidden { opacity: 0; pointer-events: none; }
+        .message h2 { margin: 0 0 8px; font-size: 29px; letter-spacing: -1px; }
+        .message p { margin: 0 0 19px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; }
+
+        button {
+            border: 0;
+            padding: 12px 20px;
+            color: #fff;
+            background: var(--green-dark);
+            font: 600 13px 'Space Grotesk', sans-serif;
+            cursor: pointer;
+            transition: transform .15s ease, background .15s ease;
+        }
+        button:hover { background: #185b37; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+
+        footer { display: flex; justify-content: space-between; align-items: center; margin-top: 17px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; }
+        .legend { display: flex; gap: 14px; align-items: center; }
+        .legend span { display: inline-flex; gap: 6px; align-items: center; }
+        .dot { width: 8px; height: 8px; display: inline-block; border-radius: 50%; background: var(--lime); }
+        .dot.red { background: var(--red); }
+
+        .controls { display: none; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(2, 42px); gap: 6px; justify-content: center; margin: 19px auto 0; }
+        .controls button { padding: 0; color: var(--ink); background: #fff; border: 1px solid var(--line); font-size: 20px; }
+        .controls button:hover { color: #fff; background: var(--green); }
+        .controls button:nth-child(1) { grid-column: 2; }
+        .controls button:nth-child(2) { grid-column: 1; grid-row: 2; }
+        .controls button:nth-child(3) { grid-column: 2; grid-row: 2; }
+        .controls button:nth-child(4) { grid-column: 3; grid-row: 2; }
+
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <header>
+            <div><p class="kicker" data-i18n="kicker">Klasyczna gra zręcznościowa / 01</p><h1>Snake</h1></div>
+            <div class="scoreboard" aria-label="Wyniki gry" data-i18n-aria-label="scoreboardLabel">
+                <div><span class="score-label" data-i18n="score">Wynik</span><strong class="score-value" id="score">000</strong></div>
+                <div><span class="score-label" data-i18n="best">Rekord</span><strong class="score-value" id="best">000</strong></div>
+            </div>
+        </header>
+
+        <div class="difficulty">
+            <label for="difficulty" data-i18n="difficultyLabel">Poziom trudności</label>
+            <select id="difficulty">
+                <option value="easy" data-i18n="easy">Łatwy</option>
+                <option value="normal" selected data-i18n="normal">Normalny</option>
+                <option value="hard" data-i18n="hard">Trudny</option>
+            </select>
+        </div>
+
+        <button class="settings-toggle" id="settings-toggle" type="button" aria-expanded="false" data-i18n="customize">Dostosuj</button>
+        <div class="settings" id="settings" aria-label="Dostosowanie gry" data-i18n-aria-label="settingsLabel">
+            <div class="setting">
+                <label for="language" data-i18n="languageLabel">Język</label>
+                <select id="language">
+                    <option value="pl">Polski</option>
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                </select>
+            </div>
+            <div class="setting">
+                <label for="snake-color" data-i18n="snakeColor">Kolor węża</label>
+                <input id="snake-color" type="color" value="#3d9b65">
+            </div>
+            <div class="setting">
+                <label for="fruit-rate" data-i18n="fruitRate">Częstotliwość owoców</label>
+                <select id="fruit-rate">
+                    <option value="5000" data-i18n="slow">Wolna</option>
+                    <option value="3000" selected data-i18n="normal">Normalna</option>
+                    <option value="1500" data-i18n="fast">Szybka</option>
+                </select>
+            </div>
+            <div class="setting">
+                <label for="fruit-count" data-i18n="fruitCount">Liczba owoców</label>
+                <select id="fruit-count">
+                    <option value="1" selected data-i18n="fruit1">1 owoc</option>
+                    <option value="2" data-i18n="fruit2">2 owoce</option>
+                    <option value="3" data-i18n="fruit3">3 owoce</option>
+                    <option value="5" data-i18n="fruit5">5 owoców</option>
+                </select>
+            </div>
+        </div>
+
+        <section class="board-wrap" aria-label="Plansza gry Snake" data-i18n-aria-label="boardLabel">
+            <canvas id="game" width="600" height="600"></canvas>
+            <div class="message" id="message">
+                <div><h2 id="message-title" data-i18n="readyTitle">Gotowy do gry?</h2><p id="message-copy" data-i18n="readyCopy">Użyj klawiszy strzałek, aby sterować wężem.</p><button id="start" data-i18n="start">Rozpocznij grę</button></div>
+            </div>
+        </section>
+
+        <div class="controls" aria-label="Sterowanie dotykowe" data-i18n-aria-label="touchControls">
+            <button data-direction="up" aria-label="Góra" data-i18n-aria-label="up">↑</button><button data-direction="left" aria-label="Lewo" data-i18n-aria-label="left">←</button><button data-direction="down" aria-label="Dół" data-i18n-aria-label="down">↓</button><button data-direction="right" aria-label="Prawo" data-i18n-aria-label="right">→</button>
+        </div>
+        <footer><div class="legend"><span><i class="dot"></i> <span data-i18n="fruit">owoc</span></span><span><i class="dot red"></i> <span data-i18n="snake">wąż</span></span></div><span class="hint" data-i18n="controlsHint">Strzałki / WASD, aby sterować</span><span data-i18n="localBest">Rekord zapisywany lokalnie</span></footer>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const context = canvas.getContext('2d');
+        const gridSize = 20;
+        const cellSize = canvas.width / gridSize;
+        const scoreElement = document.getElementById('score');
+        const bestElement = document.getElementById('best');
+        const difficultyElement = document.getElementById('difficulty');
+        const message = document.getElementById('message');
+        const title = document.getElementById('message-title');
+        const copy = document.getElementById('message-copy');
+        const startButton = document.getElementById('start');
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settings = document.getElementById('settings');
+        const snakeColorElement = document.getElementById('snake-color');
+        const fruitRateElement = document.getElementById('fruit-rate');
+        const fruitCountElement = document.getElementById('fruit-count');
+        const languageElement = document.getElementById('language');
+        let snake, fruits, direction, nextDirection, score, playing, animationFrame;
+        const difficultySpeeds = { easy: 150, normal: 105, hard: 70 };
+        let best = 0;
+        let currentSpeed;
+        let snakeColor = '#3d9b65';
+        let lastFrameTime = 0;
+        let moveElapsed = 0;
+        let fruitElapsed = 0;
+        let messageState = 'ready';
+
+        const translations = {
+            pl: { kicker: 'Klasyczna gra zręcznościowa / 01', scoreboardLabel: 'Wyniki gry', score: 'Wynik', best: 'Rekord', difficultyLabel: 'Poziom trudności', easy: 'Łatwy', normal: 'Normalny', hard: 'Trudny', customize: 'Dostosuj', settingsLabel: 'Dostosowanie gry', languageLabel: 'Język', snakeColor: 'Kolor węża', fruitRate: 'Częstotliwość owoców', slow: 'Wolna', fast: 'Szybka', fruitCount: 'Liczba owoców', fruit1: '1 owoc', fruit2: '2 owoce', fruit3: '3 owoce', fruit5: '5 owoców', boardLabel: 'Plansza gry Snake', readyTitle: 'Gotowy do gry?', readyCopy: 'Użyj klawiszy strzałek, aby sterować wężem.', start: 'Rozpocznij grę', replay: 'Zagraj ponownie', touchControls: 'Sterowanie dotykowe', up: 'Góra', left: 'Lewo', down: 'Dół', right: 'Prawo', fruit: 'owoc', snake: 'wąż', controlsHint: 'Strzałki / WASD, aby sterować', localBest: 'Rekord zapisywany lokalnie', gameOver: 'Koniec gry', scoreMessage: score => `Zdobyłeś ${score} punktów. Zagrać ponownie?` },
+            en: { kicker: 'Classic arcade game / 01', scoreboardLabel: 'Game scores', score: 'Score', best: 'Best', difficultyLabel: 'Difficulty', easy: 'Easy', normal: 'Normal', hard: 'Hard', customize: 'Customize', settingsLabel: 'Game customization', languageLabel: 'Language', snakeColor: 'Snake color', fruitRate: 'Fruit frequency', slow: 'Slow', fast: 'Fast', fruitCount: 'Fruit count', fruit1: '1 fruit', fruit2: '2 fruits', fruit3: '3 fruits', fruit5: '5 fruits', boardLabel: 'Snake game board', readyTitle: 'Ready to play?', readyCopy: 'Use the arrow keys to control the snake.', start: 'Start game', replay: 'Play again', touchControls: 'Touch controls', up: 'Up', left: 'Left', down: 'Down', right: 'Right', fruit: 'fruit', snake: 'snake', controlsHint: 'Arrows / WASD to control', localBest: 'Best score saved locally', gameOver: 'Game over', scoreMessage: score => `You scored ${score} points. Play again?` },
+            de: { kicker: 'Klassisches Geschicklichkeitsspiel / 01', scoreboardLabel: 'Spielstände', score: 'Punkte', best: 'Rekord', difficultyLabel: 'Schwierigkeit', easy: 'Leicht', normal: 'Normal', hard: 'Schwer', customize: 'Anpassen', settingsLabel: 'Spiel anpassen', languageLabel: 'Sprache', snakeColor: 'Schlangenfarbe', fruitRate: 'Fruchthäufigkeit', slow: 'Langsam', fast: 'Schnell', fruitCount: 'Anzahl Früchte', fruit1: '1 Frucht', fruit2: '2 Früchte', fruit3: '3 Früchte', fruit5: '5 Früchte', boardLabel: 'Snake-Spielfeld', readyTitle: 'Bereit zum Spielen?', readyCopy: 'Steuere die Schlange mit den Pfeiltasten.', start: 'Spiel starten', replay: 'Nochmal spielen', touchControls: 'Touch-Steuerung', up: 'Oben', left: 'Links', down: 'Unten', right: 'Rechts', fruit: 'Frucht', snake: 'Schlange', controlsHint: 'Pfeile / WASD zum Steuern', localBest: 'Rekord lokal gespeichert', gameOver: 'Spiel vorbei', scoreMessage: score => `Du hast ${score} Punkte erreicht. Nochmal spielen?` }
+        };
+        let language = localStorage.getItem('snake-language') || 'pl';
+
+        function applyLanguage() {
+            const text = translations[language];
+            document.documentElement.lang = language;
+            document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = text[element.dataset.i18n]; });
+            document.querySelectorAll('[data-i18n-aria-label]').forEach(element => { element.setAttribute('aria-label', text[element.dataset.i18nAriaLabel]); });
+            title.textContent = messageState === 'gameover' ? text.gameOver : text.readyTitle;
+            copy.textContent = messageState === 'gameover' ? text.scoreMessage(score) : text.readyCopy;
+            startButton.textContent = messageState === 'gameover' ? text.replay : text.start;
+        }
+
+        languageElement.value = language;
+        languageElement.addEventListener('change', event => {
+            language = event.target.value;
+            localStorage.setItem('snake-language', language);
+            applyLanguage();
+        });
+        applyLanguage();
+
+        function updateBestScore() {
+            best = Number(localStorage.getItem(`snake-best-${difficultyElement.value}`) || 0);
+            bestElement.textContent = String(best).padStart(3, '0');
+        }
+
+        difficultyElement.addEventListener('change', updateBestScore);
+        updateBestScore();
+
+        function reset() {
+            snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+            direction = { x: 1, y: 0 };
+            nextDirection = direction;
+            score = 0;
+            scoreElement.textContent = '000';
+            fruits = [];
+            maintainFruitCount();
+            draw();
+        }
+
+        function placeFood() {
+            let fruit;
+            do { fruit = { x: Math.floor(Math.random() * gridSize), y: Math.floor(Math.random() * gridSize) }; }
+            while (snake.some(part => part.x === fruit.x && part.y === fruit.y) || fruits.some(item => item.x === fruit.x && item.y === fruit.y));
+            fruits.push(fruit);
+        }
+
+        function maintainFruitCount() {
+            const fruitCount = Number(fruitCountElement.value);
+            while (fruits.length < fruitCount) placeFood();
+            while (fruits.length > fruitCount) fruits.pop();
+        }
+
+        function startGame() {
+            reset();
+            playing = true;
+            messageState = 'ready';
+            message.classList.add('hidden');
+            cancelAnimationFrame(animationFrame);
+            currentSpeed = difficultySpeeds[difficultyElement.value];
+            lastFrameTime = performance.now();
+            moveElapsed = 0;
+            fruitElapsed = 0;
+            animationFrame = requestAnimationFrame(gameLoop);
+        }
+
+        function increaseSpeed() {
+            currentSpeed = Math.max(35, currentSpeed - 5);
+        }
+
+        function gameLoop(timestamp) {
+            if (!playing) return;
+            const elapsed = Math.min(timestamp - lastFrameTime, 100);
+            lastFrameTime = timestamp;
+            moveElapsed += elapsed;
+            fruitElapsed += elapsed;
+            if (moveElapsed >= currentSpeed) {
+                moveElapsed = 0;
+                tick();
+            }
+            if (playing && fruitElapsed >= Number(fruitRateElement.value)) {
+                fruitElapsed = 0;
+                if (fruits.length < Number(fruitCountElement.value)) {
+                    placeFood();
+                    draw();
+                }
+            }
+            animationFrame = requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            playing = false;
+            cancelAnimationFrame(animationFrame);
+            messageState = 'gameover';
+            applyLanguage();
+            message.classList.remove('hidden');
+        }
+
+        function tick() {
+            direction = nextDirection;
+            const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+            const hitWall = head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize;
+            const hitSelf = snake.some(part => part.x === head.x && part.y === head.y);
+            if (hitWall || hitSelf) { endGame(); return; }
+            snake.unshift(head);
+            const eatenFruit = fruits.findIndex(fruit => head.x === fruit.x && head.y === fruit.y);
+            if (eatenFruit !== -1) {
+                score += 10;
+                scoreElement.textContent = String(score).padStart(3, '0');
+                if (score > best) { best = score; bestElement.textContent = String(best).padStart(3, '0'); localStorage.setItem(`snake-best-${difficultyElement.value}`, best); }
+                fruits.splice(eatenFruit, 1);
+                maintainFruitCount();
+                increaseSpeed();
+            } else snake.pop();
+            draw();
+        }
+
+        function draw() {
+            context.fillStyle = '#eaf1df';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.strokeStyle = 'rgba(90, 126, 87, .10)';
+            context.lineWidth = 1;
+            for (let index = 1; index < gridSize; index++) { context.beginPath(); context.moveTo(index * cellSize, 0); context.lineTo(index * cellSize, canvas.height); context.stroke(); context.beginPath(); context.moveTo(0, index * cellSize); context.lineTo(canvas.width, index * cellSize); context.stroke(); }
+            context.fillStyle = '#ed6555';
+            fruits.forEach(fruit => { context.beginPath(); context.arc(fruit.x * cellSize + cellSize / 2, fruit.y * cellSize + cellSize / 2, cellSize * .3, 0, Math.PI * 2); context.fill(); });
+            snake.forEach((part, index) => { context.fillStyle = index === 0 ? snakeColor : `${snakeColor}cc`; context.fillRect(part.x * cellSize + 2, part.y * cellSize + 2, cellSize - 4, cellSize - 4); });
+            const head = snake[0];
+            context.fillStyle = '#cbe86b';
+            const eyeOffset = direction.x !== 0 ? (direction.x > 0 ? 14 : 6) : 7;
+            const eyeY = direction.y !== 0 ? (direction.y > 0 ? 14 : 6) : 7;
+            context.fillRect(head.x * cellSize + eyeOffset, head.y * cellSize + eyeY, 3, 3);
+            context.fillRect(head.x * cellSize + (direction.x !== 0 ? eyeOffset : 14), head.y * cellSize + (direction.y !== 0 ? eyeY : 14), 3, 3);
+        }
+
+        function changeDirection(next) {
+            if (!playing) return;
+            const opposite = next.x === -direction.x && next.y === -direction.y;
+            if (!opposite) nextDirection = next;
+        }
+
+        settingsToggle.addEventListener('click', () => {
+            const isOpen = settings.classList.toggle('open');
+            settingsToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+        snakeColorElement.addEventListener('input', event => {
+            snakeColor = event.target.value;
+            draw();
+        });
+        fruitRateElement.addEventListener('change', () => {
+            fruitElapsed = 0;
+        });
+        fruitCountElement.addEventListener('change', () => {
+            maintainFruitCount();
+            draw();
+        });
+
+        const directions = { ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 }, ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 } };
+        document.addEventListener('keydown', event => { if (directions[event.key]) { event.preventDefault(); changeDirection(directions[event.key]); } if (event.key === ' ' && !playing) startGame(); });
+        document.querySelectorAll('[data-direction]').forEach(button => button.addEventListener('click', () => changeDirection(directions[{ up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }[button.dataset.direction]])));
+        startButton.addEventListener('click', startGame);
+        reset();
+    </script>
+</body>
+</html>
