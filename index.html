@@ -76,6 +76,9 @@
 
         .settings-toggle { display: block; margin: 18px 0 0 auto; padding: 8px 12px; color: var(--green-dark); background: transparent; border: 1px solid var(--line); font-size: 11px; }
         .settings-toggle:hover { color: #fff; background: var(--green); }
+        .view-toggle { margin: 18px 0 0; padding: 8px 12px; color: var(--green-dark); background: transparent; border: 1px solid var(--line); font-size: 11px; }
+        .view-toggle:hover { color: #fff; background: var(--green); }
+        .toolbar { display: flex; justify-content: flex-end; gap: 8px; }
         .settings { display: none; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 10px 0 18px; padding: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.72); }
         .settings.open { display: grid; }
         .setting { display: grid; gap: 6px; }
@@ -128,6 +131,26 @@
         .controls button:nth-child(3) { grid-column: 2; grid-row: 2; }
         .controls button:nth-child(4) { grid-column: 3; grid-row: 2; }
 
+        body.phone-mode { place-items: start center; }
+        body.phone-mode .shell { padding-top: 25px; }
+        body.phone-mode header { align-items: center; }
+        body.phone-mode .scoreboard { gap: 15px; }
+        body.phone-mode .settings { grid-template-columns: 1fr; }
+        body.phone-mode .controls { display: grid; }
+        body.phone-mode footer { margin-top: 14px; }
+        body.phone-mode .hint { display: none; }
+
+        @media (max-width: 520px) {
+            .shell { width: min(94vw, 620px); }
+            .toolbar { flex-wrap: wrap; }
+            .view-toggle, .settings-toggle { margin-top: 12px; }
+            .view-toggle { margin-left: auto; }
+            header { align-items: center; }
+            .scoreboard { gap: 15px; }
+            footer { margin-top: 14px; }
+            .hint { display: none; }
+        }
+
     </style>
 </head>
 <body>
@@ -149,7 +172,10 @@
             </select>
         </div>
 
-        <button class="settings-toggle" id="settings-toggle" type="button" aria-expanded="false" data-i18n="customize">Dostosuj</button>
+        <div class="toolbar">
+            <button class="view-toggle" id="view-toggle" type="button" data-i18n="phoneMode">Tryb telefonu</button>
+            <button class="settings-toggle" id="settings-toggle" type="button" aria-expanded="false" data-i18n="customize">Dostosuj</button>
+        </div>
         <div class="settings" id="settings" aria-label="Dostosowanie gry" data-i18n-aria-label="settingsLabel">
             <div class="setting">
                 <label for="language" data-i18n="languageLabel">Język</label>
@@ -213,6 +239,7 @@
         const fruitRateElement = document.getElementById('fruit-rate');
         const fruitCountElement = document.getElementById('fruit-count');
         const languageElement = document.getElementById('language');
+        const viewToggle = document.getElementById('view-toggle');
         let snake, fruits, direction, nextDirection, score, playing, animationFrame;
         const difficultySpeeds = { easy: 150, normal: 105, hard: 70 };
         let best = 0;
@@ -222,11 +249,12 @@
         let moveElapsed = 0;
         let fruitElapsed = 0;
         let messageState = 'ready';
+        let phoneMode = window.matchMedia('(max-width: 520px)').matches;
 
         const translations = {
-            pl: { kicker: 'Klasyczna gra zręcznościowa / 01', scoreboardLabel: 'Wyniki gry', score: 'Wynik', best: 'Rekord', difficultyLabel: 'Poziom trudności', easy: 'Łatwy', normal: 'Normalny', hard: 'Trudny', customize: 'Dostosuj', settingsLabel: 'Dostosowanie gry', languageLabel: 'Język', snakeColor: 'Kolor węża', fruitRate: 'Częstotliwość owoców', slow: 'Wolna', fast: 'Szybka', fruitCount: 'Liczba owoców', fruit1: '1 owoc', fruit2: '2 owoce', fruit3: '3 owoce', fruit5: '5 owoców', boardLabel: 'Plansza gry Snake', readyTitle: 'Gotowy do gry?', readyCopy: 'Użyj klawiszy strzałek, aby sterować wężem.', start: 'Rozpocznij grę', replay: 'Zagraj ponownie', touchControls: 'Sterowanie dotykowe', up: 'Góra', left: 'Lewo', down: 'Dół', right: 'Prawo', fruit: 'owoc', snake: 'wąż', controlsHint: 'Strzałki / WASD, aby sterować', localBest: 'Rekord zapisywany lokalnie', gameOver: 'Koniec gry', scoreMessage: score => `Zdobyłeś ${score} punktów. Zagrać ponownie?` },
-            en: { kicker: 'Classic arcade game / 01', scoreboardLabel: 'Game scores', score: 'Score', best: 'Best', difficultyLabel: 'Difficulty', easy: 'Easy', normal: 'Normal', hard: 'Hard', customize: 'Customize', settingsLabel: 'Game customization', languageLabel: 'Language', snakeColor: 'Snake color', fruitRate: 'Fruit frequency', slow: 'Slow', fast: 'Fast', fruitCount: 'Fruit count', fruit1: '1 fruit', fruit2: '2 fruits', fruit3: '3 fruits', fruit5: '5 fruits', boardLabel: 'Snake game board', readyTitle: 'Ready to play?', readyCopy: 'Use the arrow keys to control the snake.', start: 'Start game', replay: 'Play again', touchControls: 'Touch controls', up: 'Up', left: 'Left', down: 'Down', right: 'Right', fruit: 'fruit', snake: 'snake', controlsHint: 'Arrows / WASD to control', localBest: 'Best score saved locally', gameOver: 'Game over', scoreMessage: score => `You scored ${score} points. Play again?` },
-            de: { kicker: 'Klassisches Geschicklichkeitsspiel / 01', scoreboardLabel: 'Spielstände', score: 'Punkte', best: 'Rekord', difficultyLabel: 'Schwierigkeit', easy: 'Leicht', normal: 'Normal', hard: 'Schwer', customize: 'Anpassen', settingsLabel: 'Spiel anpassen', languageLabel: 'Sprache', snakeColor: 'Schlangenfarbe', fruitRate: 'Fruchthäufigkeit', slow: 'Langsam', fast: 'Schnell', fruitCount: 'Anzahl Früchte', fruit1: '1 Frucht', fruit2: '2 Früchte', fruit3: '3 Früchte', fruit5: '5 Früchte', boardLabel: 'Snake-Spielfeld', readyTitle: 'Bereit zum Spielen?', readyCopy: 'Steuere die Schlange mit den Pfeiltasten.', start: 'Spiel starten', replay: 'Nochmal spielen', touchControls: 'Touch-Steuerung', up: 'Oben', left: 'Links', down: 'Unten', right: 'Rechts', fruit: 'Frucht', snake: 'Schlange', controlsHint: 'Pfeile / WASD zum Steuern', localBest: 'Rekord lokal gespeichert', gameOver: 'Spiel vorbei', scoreMessage: score => `Du hast ${score} Punkte erreicht. Nochmal spielen?` }
+            pl: { kicker: 'Klasyczna gra zręcznościowa / 01', scoreboardLabel: 'Wyniki gry', score: 'Wynik', best: 'Rekord', difficultyLabel: 'Poziom trudności', easy: 'Łatwy', normal: 'Normalny', hard: 'Trudny', customize: 'Dostosuj', phoneMode: 'Tryb telefonu', pcMode: 'Tryb PC', settingsLabel: 'Dostosowanie gry', languageLabel: 'Język', snakeColor: 'Kolor węża', fruitRate: 'Częstotliwość owoców', slow: 'Wolna', fast: 'Szybka', fruitCount: 'Liczba owoców', fruit1: '1 owoc', fruit2: '2 owoce', fruit3: '3 owoce', fruit5: '5 owoców', boardLabel: 'Plansza gry Snake', readyTitle: 'Gotowy do gry?', readyCopy: 'Użyj klawiszy strzałek, aby sterować wężem.', start: 'Rozpocznij grę', replay: 'Zagraj ponownie', touchControls: 'Sterowanie dotykowe', up: 'Góra', left: 'Lewo', down: 'Dół', right: 'Prawo', fruit: 'owoc', snake: 'wąż', controlsHint: 'Strzałki / WASD, aby sterować', localBest: 'Rekord zapisywany lokalnie', gameOver: 'Koniec gry', scoreMessage: score => `Zdobyłeś ${score} punktów. Zagrać ponownie?` },
+            en: { kicker: 'Classic arcade game / 01', scoreboardLabel: 'Game scores', score: 'Score', best: 'Best', difficultyLabel: 'Difficulty', easy: 'Easy', normal: 'Normal', hard: 'Hard', customize: 'Customize', phoneMode: 'Phone mode', pcMode: 'PC mode', settingsLabel: 'Game customization', languageLabel: 'Language', snakeColor: 'Snake color', fruitRate: 'Fruit frequency', slow: 'Slow', fast: 'Fast', fruitCount: 'Fruit count', fruit1: '1 fruit', fruit2: '2 fruits', fruit3: '3 fruits', fruit5: '5 fruits', boardLabel: 'Snake game board', readyTitle: 'Ready to play?', readyCopy: 'Use the arrow keys to control the snake.', start: 'Start game', replay: 'Play again', touchControls: 'Touch controls', up: 'Up', left: 'Left', down: 'Down', right: 'Right', fruit: 'fruit', snake: 'snake', controlsHint: 'Arrows / WASD to control', localBest: 'Best score saved locally', gameOver: 'Game over', scoreMessage: score => `You scored ${score} points. Play again?` },
+            de: { kicker: 'Klassisches Geschicklichkeitsspiel / 01', scoreboardLabel: 'Spielstände', score: 'Punkte', best: 'Rekord', difficultyLabel: 'Schwierigkeit', easy: 'Leicht', normal: 'Normal', hard: 'Schwer', customize: 'Anpassen', phoneMode: 'Telefonmodus', pcMode: 'PC-Modus', settingsLabel: 'Spiel anpassen', languageLabel: 'Sprache', snakeColor: 'Schlangenfarbe', fruitRate: 'Fruchthäufigkeit', slow: 'Langsam', fast: 'Schnell', fruitCount: 'Anzahl Früchte', fruit1: '1 Frucht', fruit2: '2 Früchte', fruit3: '3 Früchte', fruit5: '5 Früchte', boardLabel: 'Snake-Spielfeld', readyTitle: 'Bereit zum Spielen?', readyCopy: 'Steuere die Schlange mit den Pfeiltasten.', start: 'Spiel starten', replay: 'Nochmal spielen', touchControls: 'Touch-Steuerung', up: 'Oben', left: 'Links', down: 'Unten', right: 'Rechts', fruit: 'Frucht', snake: 'Schlange', controlsHint: 'Pfeile / WASD zum Steuern', localBest: 'Rekord lokal gespeichert', gameOver: 'Spiel vorbei', scoreMessage: score => `Du hast ${score} Punkte erreicht. Nochmal spielen?` }
         };
         let language = localStorage.getItem('snake-language') || 'pl';
 
@@ -235,6 +263,7 @@
             document.documentElement.lang = language;
             document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = text[element.dataset.i18n]; });
             document.querySelectorAll('[data-i18n-aria-label]').forEach(element => { element.setAttribute('aria-label', text[element.dataset.i18nAriaLabel]); });
+            viewToggle.textContent = phoneMode ? text.pcMode : text.phoneMode;
             title.textContent = messageState === 'gameover' ? text.gameOver : text.readyTitle;
             copy.textContent = messageState === 'gameover' ? text.scoreMessage(score) : text.readyCopy;
             startButton.textContent = messageState === 'gameover' ? text.replay : text.start;
@@ -247,6 +276,13 @@
             applyLanguage();
         });
         applyLanguage();
+        document.body.classList.toggle('phone-mode', phoneMode);
+
+        viewToggle.addEventListener('click', () => {
+            phoneMode = !phoneMode;
+            document.body.classList.toggle('phone-mode', phoneMode);
+            applyLanguage();
+        });
 
         function updateBestScore() {
             best = Number(localStorage.getItem(`snake-best-${difficultyElement.value}`) || 0);
